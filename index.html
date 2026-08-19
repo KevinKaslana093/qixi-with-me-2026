@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090807">
+  <meta name="description" content="这个七夕，和我一起。一次关于浪漫、游戏、AI 与异世界的互动旅程。">
+  <meta property="og:title" content="这个七夕，和我一起。">
+  <meta property="og:description" content="今晚，不止一种可能。">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <title>这个七夕，和我一起。</title>
+</head>
+<body>
+  <div id="loader" class="loader">
+    <div class="loader-orbit" aria-hidden="true"></div>
+    <p class="eyebrow">AN INVITATION FOR QIXI</p>
+    <h1>这个七夕，<br>和我一起。</h1>
+    <div class="loader-progress"><i id="loaderBar"></i></div>
+    <p id="loaderStatus" class="loader-status">正在整理今晚的可能性 · 0%</p>
+    <button id="enterButton" class="enter-button" disabled>
+      <span>开启声音并进入</span><small>ENTER THE NIGHT</small>
+    </button>
+  </div>
+
+  <main id="experience" class="experience" aria-hidden="true">
+    <header class="hud">
+      <button class="brand" data-go="0" aria-label="返回开场">QIXI<span>∞</span></button>
+      <button id="soundButton" class="sound-button" aria-label="切换声音">
+        <span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span id="soundLabel">SOUND ON</span>
+      </button>
+    </header>
+
+    <nav id="progressRail" class="progress-rail" aria-label="章节导航"></nav>
+    <div id="chapterBadge" class="chapter-badge">男孩的七夕</div>
+    <div id="scrollHint" class="scroll-hint"><span></span><b>滚动探索</b></div>
+    <div class="cursor" id="cursor"><span>探索</span></div>
+
+    <section class="panel cover-panel is-active" data-scene="cover" aria-label="开场">
+      <div class="cover-glow"></div>
+      <div class="cover-copy">
+        <p>AN INVITATION</p>
+        <h2>这个七夕，<br><em>和我一起。</em></h2>
+        <div class="cover-rule"></div>
+        <span>我想邀请你，度过一个不一样的夜晚。</span>
+      </div>
+      <button class="round-advance" data-next aria-label="继续"><span>向下</span></button>
+    </section>
+
+    <section class="panel boy-panel" data-scene="boy" aria-label="男孩的七夕">
+      <canvas id="boyCanvas"></canvas>
+      <div class="boy-caption" id="boyCaption">
+        <p>遇见一个人</p><p>交换一些心事</p><p>陪她走一段路</p><p>分享安静的时刻</p><p>送上一束花</p><p>把今晚写进星光里</p>
+      </div>
+      <div class="story-choice" id="storyChoice" aria-hidden="true">
+        <p>这一次，要开口吗？</p>
+        <div><button data-branch="success">走向她</button><button data-branch="failure">沉默离开</button></div>
+      </div>
+      <div class="film-counter">01 / ROMANCE</div>
+    </section>
+
+    <section class="panel question-panel" data-scene="question" aria-label="转折">
+      <div class="question-grain"></div>
+      <p>那，男人呢？</p>
+    </section>
+
+    <section class="panel man-panel" data-scene="man" aria-label="男人的七夕">
+      <canvas id="energyCanvas"></canvas>
+      <div class="man-copy">
+        <p>THE NIGHT IS STILL YOUNG</p>
+        <h2>今晚，<br>世界不止一个。</h2>
+        <div class="word-stream" aria-hidden="true"><span>GAME</span><span>ANIME</span><span>AI</span><span>UNKNOWN</span></div>
+      </div>
+    </section>
+
+    <section class="panel universe-panel game-panel" data-scene="game" aria-label="游戏板块">
+      <div class="section-copy">
+        <p>01 / ENTER ANOTHER WORLD</p>
+        <h2>殴打一些<br>游戏。</h2>
+      </div>
+      <div class="scatter-stage" id="gameStage">
+        <figure class="scatter-card media-card" style="--x:-31vw;--y:-24vh;--r:-8deg;--s:.78;--i:1"><img src="assets/game-ice.jpg" alt="冰雪世界游戏画面"></figure>
+        <figure class="scatter-card media-card" style="--x:31vw;--y:-24vh;--r:7deg;--s:.76;--i:2"><img src="assets/game-comic.jpg" alt="漫画风游戏画面"></figure>
+        <figure class="scatter-card media-card" style="--x:31vw;--y:23vh;--r:5deg;--s:.73;--i:3"><img src="assets/game-red.jpg" alt="红色角色游戏画面"></figure>
+        <figure class="scatter-card media-card" style="--x:-31vw;--y:24vh;--r:-6deg;--s:.75;--i:4"><img src="assets/game-soft.jpg" alt="明亮角色游戏画面"></figure>
+        <button class="center-media" id="genshinPreviewWrap" data-video="genshin" aria-label="播放原神启动视频">
+          <video id="genshinPreview" src="assets/genshin-start.mp4" muted playsinline preload="metadata"></video>
+          <span class="genshin-fallback"><b>原神</b><small>GENSHIN IMPACT</small></span>
+          <span class="play-mark">PLAY <i></i></span>
+        </button>
+        <button class="stage-trigger" data-stage="gameStage"><span>点击展开世界</span><i></i></button>
+      </div>
+    </section>
+
+    <section class="panel universe-panel ai-panel" data-scene="ai" aria-label="AI板块">
+      <div class="section-copy light-copy">
+        <p>02 / TALK TO THE UNKNOWN</p>
+        <h2>训练一些<br>AI。</h2>
+      </div>
+      <div class="scatter-stage ai-stage" id="aiStage">
+        <figure class="scatter-card logo-card" style="--x:-29vw;--y:-20vh;--r:-12deg;--s:1;--i:1"><img src="assets/ai-kimi.png" alt="Kimi"></figure>
+        <figure class="scatter-card logo-card" style="--x:28vw;--y:-20vh;--r:11deg;--s:1;--i:2"><img src="assets/ai-chatgpt.png" alt="ChatGPT"></figure>
+        <figure class="scatter-card logo-card" style="--x:30vw;--y:21vh;--r:8deg;--s:1;--i:3"><img src="assets/ai-grok.png" alt="Grok"></figure>
+        <figure class="scatter-card logo-card" style="--x:-29vw;--y:22vh;--r:-9deg;--s:1;--i:4"><img src="assets/ai-doubao.png" alt="豆包"></figure>
+        <figure class="scatter-card group-card" style="--x:24vw;--y:5vh;--r:7deg;--s:.72;--i:5"><img src="assets/ai-group.jpg" alt="AI女仆团插画"></figure>
+        <figure class="scatter-card group-card whale-side" style="--x:-20vw;--y:3vh;--r:-7deg;--s:.68;--i:6"><img src="assets/ai-whale.jpg" alt="DeepSeek鲸鱼娘"></figure>
+        <button class="center-media ai-video-media" id="aiPreviewWrap" data-video="ai" aria-label="播放牛来：新宿决战">
+          <video id="aiPreview" src="assets/ai-shinjuku.mp4" muted playsinline preload="metadata"></video>
+          <span class="play-mark">PLAY THE FILM <i></i></span>
+        </button>
+        <a class="source-link" href="https://www.bilibili.com/video/BV1pvbX6cE5s" target="_blank" rel="noopener noreferrer"><b>观看原作 ↗</b><small>非本人作品，版权归原作者所有</small></a>
+        <button class="stage-trigger" data-stage="aiStage"><span>点击释放灵感</span><i></i></button>
+      </div>
+    </section>
+
+    <section class="panel universe-panel re0-panel" data-scene="re0" aria-label="Re:0板块">
+      <div class="section-copy">
+        <p>03 / RETURN BY DEATH</p>
+        <h2>欣赏一些<br>作品。</h2>
+      </div>
+      <div class="scatter-stage re0-stage" id="re0Stage">
+        <figure class="scatter-card media-card" style="--x:-31vw;--y:-25vh;--r:-9deg;--s:.67;--i:1"><img src="assets/re0-1.jpg" alt="Re:0动画画面一"></figure>
+        <figure class="scatter-card media-card" style="--x:31vw;--y:-24vh;--r:8deg;--s:.68;--i:2"><img src="assets/re0-2.jpg" alt="Re:0动画画面二"></figure>
+        <figure class="scatter-card media-card" style="--x:-33vw;--y:21vh;--r:7deg;--s:.66;--i:3"><img src="assets/re0-3.jpg" alt="Re:0动画画面三"></figure>
+        <figure class="scatter-card media-card" style="--x:33vw;--y:21vh;--r:-7deg;--s:.66;--i:4"><img src="assets/re0-4.jpg" alt="Re:0动画画面四"></figure>
+        <figure class="scatter-card media-card" style="--x:0vw;--y:32vh;--r:2deg;--s:.58;--i:5"><img src="assets/re0-5.jpg" alt="Re:0动画画面五"></figure>
+        <button class="center-media re0-media" id="re0PreviewWrap" data-video="re0" aria-label="播放Re:0片头曲">
+          <video id="re0Preview" data-parts="assets/re0-op.mp4.part01,assets/re0-op.mp4.part02,assets/re0-op.mp4.part03" poster="assets/re0-1.jpg" muted playsinline preload="metadata"></video>
+          <span class="play-mark">PLAY THE OPENING <i></i></span>
+        </button>
+        <button class="stage-trigger" data-stage="re0Stage"><span>点击进入异世界</span><i></i></button>
+      </div>
+    </section>
+
+    <section class="panel outro-panel" data-scene="outro" aria-label="结尾">
+      <div class="outro-stars"></div>
+      <div class="outro-copy">
+        <p>ONE NIGHT · INFINITE POSSIBILITIES</p>
+        <h2>七夕，从来不止<br>一种过法。</h2>
+        <blockquote>爱一个人。爱一个世界。<br>或者，爱上仍在发生的未知。</blockquote>
+        <button class="contact-button" id="contactButton">和我聊聊 <span>↗</span></button>
+      </div>
+      <small>MADE WITH CURIOSITY · 2026</small>
+    </section>
+  </main>
+
+  <div id="mediaModal" class="media-modal" aria-hidden="true" role="dialog" aria-label="视频播放器">
+    <button id="closeModal" class="modal-close" aria-label="关闭视频">CLOSE <span>×</span></button>
+    <video id="modalVideo" controls playsinline></video>
+    <p id="modalTitle"></p>
+  </div>
+
+  <audio id="introAudio" src="assets/intro.mp3" preload="auto"></audio>
+  <audio id="aizoAudio" data-parts="assets/aizo.mp3.part01,assets/aizo.mp3.part02" preload="auto" loop></audio>
+  <script src="app.js"></script>
+</body>
+</html>
