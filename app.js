@@ -54,6 +54,7 @@
   let romanceBranch = null;
   let choicePending = false;
   let speedIndex = 0;
+  let animationSpeed = 1;
   let audioBeforeModal = null;
 
   introAudio.volume = .72;
@@ -420,18 +421,18 @@
     boyProgress = 0;
     romanceBranch = null;
     choicePending = false;
-    speedIndex=0;introAudio.playbackRate=1;const speedButton=document.querySelector('#heartSpeed');speedButton.classList.remove('is-fast');speedButton.querySelector('span').textContent='轻点画面，让他们更快奔向彼此';speedButton.querySelector('b').textContent='×1';
+    speedIndex=0;animationSpeed=1;introAudio.playbackRate=1;const speedButton=document.querySelector('#heartSpeed');speedButton.classList.remove('is-fast');speedButton.querySelector('span').textContent='轻点画面，让他们更快奔向彼此';speedButton.querySelector('b').textContent='×1';
     const choice=document.querySelector('#storyChoice');choice.classList.remove('is-show');choice.setAttribute('aria-hidden','true');
     const successCopy=['遇见一个人','交换一些心事','陪她走一段路','分享安静的时刻','送上一束花','把今晚写进星光里'];
     captions.forEach((caption,index)=>caption.textContent=successCopy[index]);
     captions.forEach(c => c.classList.remove('is-show'));
     if(!globalMuted){introAudio.currentTime=0;introAudio.volume=.72;introAudio.play().catch(()=>{})}
     const start = performance.now();
-    let lastTick=start,fallbackProgress=0;
+    let lastTick=start,lastAudioTime=introAudio.currentTime;
     const tick = now => {
       const duration=Number.isFinite(introAudio.duration)&&introAudio.duration>1?introAudio.duration:75;
-      const delta=now-lastTick;lastTick=now;if(!choicePending&&globalMuted)fallbackProgress+=delta/(duration*1000);
-      if(!choicePending)boyProgress = Math.min(1,globalMuted?fallbackProgress:introAudio.currentTime/duration);
+      const delta=Math.min(120,now-lastTick);lastTick=now;const audioNow=introAudio.currentTime;const timelineDelta=globalMuted?delta/1000:Math.max(0,audioNow-lastAudioTime);lastAudioTime=audioNow;
+      if(!choicePending)boyProgress=Math.min(1,boyProgress+timelineDelta/duration*animationSpeed);
       if(boyProgress>=.46&&!romanceBranch&&!choicePending){choicePending=true;boyProgress=.46;introAudio.pause();choice.classList.add('is-show');choice.setAttribute('aria-hidden','false')}
       const cue=[.06,.2,.37,.54,.7,.86];captions.forEach((caption,index)=>caption.classList.toggle('is-show',boyProgress>cue[index]&&boyProgress<cue[index]+.2));
       if (boyProgress < 1 && scenes[current] === 'boy') boyAnimation=requestAnimationFrame(tick);
@@ -444,7 +445,7 @@
     if(!globalMuted)introAudio.play().catch(()=>{});
   }));
   document.querySelector('#heartSpeed').addEventListener('click',event=>{
-    event.stopPropagation();const speeds=[1,2.2,3.5,5];speedIndex=Math.min(speedIndex+1,speeds.length-1);introAudio.playbackRate=speeds[speedIndex];const button=event.currentTarget;button.classList.add('is-fast');button.querySelector('span').textContent=speedIndex===speeds.length-1?'他们正在全力奔向彼此':'心动正在悄悄加速';button.querySelector('b').textContent=`×${speeds[speedIndex]}`;
+    event.stopPropagation();const speeds=[1,2.2,3.5,5];speedIndex=Math.min(speedIndex+1,speeds.length-1);animationSpeed=speeds[speedIndex];const button=event.currentTarget;button.classList.add('is-fast');button.querySelector('span').textContent=speedIndex===speeds.length-1?'他们正在全力奔向彼此':'心动正在悄悄加速';button.querySelector('b').textContent=`×${speeds[speedIndex]}`;
   });
   introAudio.addEventListener('ended',()=>{if(scenes[current]==='boy')goTo(2,{force:true})});
 
