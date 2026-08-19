@@ -59,6 +59,7 @@
         <p>这一次，要开口吗？</p>
         <div><button data-branch="success">走向她</button><button data-branch="failure">沉默离开</button></div>
       </div>
+      <button class="heart-speed" id="heartSpeed" aria-label="加快动画"><span>轻点画面，让他们更快奔向彼此</span><b>×1</b></button>
       <div class="film-counter">01 / ROMANCE</div>
     </section>
 
@@ -151,6 +152,10 @@
     <button id="closeModal" class="modal-close" aria-label="关闭视频">CLOSE <span>×</span></button>
     <video id="modalVideo" controls playsinline></video>
     <p id="modalTitle"></p>
+  </div>
+
+  <div id="prankEnding" class="prank-ending" aria-hidden="true">
+    <p><span>哈哈，你在想什么。</span><span>怎么会有这个东西。</span><b>七夕节快乐。</b></p>
   </div>
 
   <audio id="introAudio" src="assets/intro.mp3" preload="auto"></audio>
