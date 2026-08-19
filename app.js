@@ -53,6 +53,7 @@
   let boyAnimation = 0;
   let romanceBranch = null;
   let choicePending = false;
+  let speedIndex = 0;
   let audioBeforeModal = null;
 
   introAudio.volume = .72;
@@ -284,10 +285,12 @@
     }
   });
 
+  let contactClicks=0;
   document.querySelector('#contactButton').addEventListener('click', event => {
     const button = event.currentTarget;
-    button.firstChild.textContent = '联系方式即将揭晓 ';
-    setTimeout(() => { button.firstChild.textContent = '和我聊聊 '; }, 2300);
+    contactClicks++;
+    if(contactClicks===1){button.firstChild.textContent='你真的想知道吗？再点一次 ';button.classList.add('is-armed');return}
+    document.body.classList.add('is-collapsing');fadeAudio(aizoAudio,0,650,true);fadeAudio(introAudio,0,650,true);const ending=document.querySelector('#prankEnding');setTimeout(()=>{ending.classList.add('is-show');ending.setAttribute('aria-hidden','false')},260);
   });
 
   // Custom cursor and gentle scene parallax.
@@ -417,6 +420,7 @@
     boyProgress = 0;
     romanceBranch = null;
     choicePending = false;
+    speedIndex=0;introAudio.playbackRate=1;const speedButton=document.querySelector('#heartSpeed');speedButton.classList.remove('is-fast');speedButton.querySelector('span').textContent='轻点画面，让他们更快奔向彼此';speedButton.querySelector('b').textContent='×1';
     const choice=document.querySelector('#storyChoice');choice.classList.remove('is-show');choice.setAttribute('aria-hidden','true');
     const successCopy=['遇见一个人','交换一些心事','陪她走一段路','分享安静的时刻','送上一束花','把今晚写进星光里'];
     captions.forEach((caption,index)=>caption.textContent=successCopy[index]);
@@ -439,6 +443,9 @@
     if(romanceBranch==='failure'){const copy=['遇见一个人','交换一些心事','差一点说出口','她走向了远处','花没有送出去','有些七夕，只剩一个人'];captions.forEach((caption,index)=>caption.textContent=copy[index])}
     if(!globalMuted)introAudio.play().catch(()=>{});
   }));
+  document.querySelector('#heartSpeed').addEventListener('click',event=>{
+    event.stopPropagation();const speeds=[1,2.2,3.5,5];speedIndex=Math.min(speedIndex+1,speeds.length-1);introAudio.playbackRate=speeds[speedIndex];const button=event.currentTarget;button.classList.add('is-fast');button.querySelector('span').textContent=speedIndex===speeds.length-1?'他们正在全力奔向彼此':'心动正在悄悄加速';button.querySelector('b').textContent=`×${speeds[speedIndex]}`;
+  });
   introAudio.addEventListener('ended',()=>{if(scenes[current]==='boy')goTo(2,{force:true})});
 
   // Living background for the "man" reveal.
