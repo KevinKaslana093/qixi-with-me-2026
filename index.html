@@ -77,74 +77,43 @@
       </div>
     </section>
 
-    <section class="panel universe-panel game-panel" data-scene="game" aria-label="游戏板块">
-      <div class="section-copy">
-        <p>01 / ENTER ANOTHER WORLD</p>
-        <h2>殴打一些<br>游戏。</h2>
-      </div>
-      <div class="scatter-stage" id="gameStage">
-        <figure class="scatter-card media-card" style="--x:-31vw;--y:-24vh;--r:-8deg;--s:.78;--i:1"><img src="assets/game-ice.jpg" alt="冰雪世界游戏画面"></figure>
-        <figure class="scatter-card media-card" style="--x:31vw;--y:-24vh;--r:7deg;--s:.76;--i:2"><img src="assets/game-comic.jpg" alt="漫画风游戏画面"></figure>
-        <figure class="scatter-card media-card" style="--x:31vw;--y:23vh;--r:5deg;--s:.73;--i:3"><img src="assets/game-red.jpg" alt="红色角色游戏画面"></figure>
-        <figure class="scatter-card media-card" style="--x:-31vw;--y:24vh;--r:-6deg;--s:.75;--i:4"><img src="assets/game-soft.jpg" alt="明亮角色游戏画面"></figure>
-        <button class="center-media" id="genshinPreviewWrap" data-video="genshin" aria-label="播放原神启动视频">
-          <video id="genshinPreview" src="assets/genshin-start.mp4" muted playsinline preload="metadata"></video>
-          <span class="genshin-fallback"><b>原神</b><small>GENSHIN IMPACT</small></span>
-          <span class="play-mark">PLAY <i></i></span>
-        </button>
-        <button class="stage-trigger" data-stage="gameStage"><span>点击展开世界</span><i></i></button>
-      </div>
-    </section>
+    <section class="panel world-panel" data-scene="world" aria-label="男人的七夕空间">
+      <canvas id="worldCanvas"></canvas>
+      <div class="world-vignette"></div>
+      <div class="world-intro" id="worldIntro"><p>THE OTHER SIDE OF TONIGHT</p><h2>陪它走一段。</h2></div>
+      <div class="world-guide" id="worldGuide"><i></i><span>滚动，让今晚继续发生</span></div>
+      <div class="world-progress"><span id="worldProgressLabel">沿着光 · 0%</span><i><b id="worldProgressBar"></b></i></div>
 
-    <section class="panel universe-panel ai-panel" data-scene="ai" aria-label="AI板块">
-      <div class="section-copy light-copy">
-        <p>02 / TALK TO THE UNKNOWN</p>
-        <h2>训练一些<br>AI。</h2>
-      </div>
-      <div class="scatter-stage ai-stage" id="aiStage">
-        <figure class="scatter-card logo-card" style="--x:-29vw;--y:-20vh;--r:-12deg;--s:1;--i:1"><img src="assets/ai-kimi.png" alt="Kimi"></figure>
-        <figure class="scatter-card logo-card" style="--x:28vw;--y:-20vh;--r:11deg;--s:1;--i:2"><img src="assets/ai-chatgpt.png" alt="ChatGPT"></figure>
-        <figure class="scatter-card logo-card" style="--x:30vw;--y:21vh;--r:8deg;--s:1;--i:3"><img src="assets/ai-grok.png" alt="Grok"></figure>
-        <figure class="scatter-card logo-card" style="--x:-29vw;--y:22vh;--r:-9deg;--s:1;--i:4"><img src="assets/ai-doubao.png" alt="豆包"></figure>
-        <figure class="scatter-card group-card" style="--x:24vw;--y:5vh;--r:7deg;--s:.72;--i:5"><img src="assets/ai-group.jpg" alt="AI女仆团插画"></figure>
-        <figure class="scatter-card group-card whale-side" style="--x:-20vw;--y:3vh;--r:-7deg;--s:.68;--i:6"><img src="assets/ai-whale.jpg" alt="DeepSeek鲸鱼娘"></figure>
-        <button class="center-media ai-video-media" id="aiPreviewWrap" data-video="ai" aria-label="播放牛来：新宿决战">
-          <video id="aiPreview" src="assets/ai-shinjuku.mp4" muted playsinline preload="metadata"></video>
-          <span class="play-mark">PLAY THE FILM <i></i></span>
-        </button>
-        <a class="source-link" href="https://www.bilibili.com/video/BV1pvbX6cE5s" target="_blank" rel="noopener noreferrer"><b>观看原作 ↗</b><small>非本人作品，版权归原作者所有</small></a>
-        <button class="stage-trigger" data-stage="aiStage"><span>点击释放灵感</span><i></i></button>
-      </div>
-    </section>
+      <button class="world-node node-game" data-module="game" aria-label="殴打一些游戏">
+        <span class="node-index">01</span><span class="node-title">殴打一些<br>游戏。</span>
+        <span class="node-stack">
+          <img src="assets/game-ice.jpg" alt=""><img src="assets/game-comic.jpg" alt=""><img src="assets/game-red.jpg" alt=""><img src="assets/game-soft.jpg" alt="">
+        </span><small>ENTER ANOTHER WORLD</small>
+      </button>
+      <button class="world-node node-ai" data-module="ai" aria-label="训练一些AI">
+        <span class="node-index">02</span><span class="node-title">训练一些<br>AI。</span>
+        <span class="node-stack">
+          <img src="assets/ai-kimi.png" alt=""><img src="assets/ai-chatgpt.png" alt=""><img src="assets/ai-whale.jpg" alt=""><img src="assets/ai-group.jpg" alt="">
+        </span><small>TALK TO THE UNKNOWN</small>
+      </button>
+      <button class="world-node node-anime" data-module="anime" aria-label="欣赏一些作品">
+        <span class="node-index">03</span><span class="node-title">欣赏一些<br>作品。</span>
+        <span class="node-stack">
+          <img src="assets/re0-1.jpg" alt=""><img src="assets/re0-2.jpg" alt=""><img src="assets/re0-3.jpg" alt=""><img src="assets/re0-4.jpg" alt="">
+        </span><small>MEET AT FRAME 24</small>
+      </button>
 
-    <section class="panel universe-panel re0-panel" data-scene="re0" aria-label="Re:0板块">
-      <div class="section-copy">
-        <p>03 / RETURN BY DEATH</p>
-        <h2>欣赏一些<br>作品。</h2>
-      </div>
-      <div class="scatter-stage re0-stage" id="re0Stage">
-        <figure class="scatter-card media-card" style="--x:-31vw;--y:-25vh;--r:-9deg;--s:.67;--i:1"><img src="assets/re0-1.jpg" alt="Re:0动画画面一"></figure>
-        <figure class="scatter-card media-card" style="--x:31vw;--y:-24vh;--r:8deg;--s:.68;--i:2"><img src="assets/re0-2.jpg" alt="Re:0动画画面二"></figure>
-        <figure class="scatter-card media-card" style="--x:-33vw;--y:21vh;--r:7deg;--s:.66;--i:3"><img src="assets/re0-3.jpg" alt="Re:0动画画面三"></figure>
-        <figure class="scatter-card media-card" style="--x:33vw;--y:21vh;--r:-7deg;--s:.66;--i:4"><img src="assets/re0-4.jpg" alt="Re:0动画画面四"></figure>
-        <figure class="scatter-card media-card" style="--x:0vw;--y:32vh;--r:2deg;--s:.58;--i:5"><img src="assets/re0-5.jpg" alt="Re:0动画画面五"></figure>
-        <button class="center-media re0-media" id="re0PreviewWrap" data-video="re0" aria-label="播放Re:0片头曲">
-          <video id="re0Preview" data-parts="assets/re0-op.mp4.part01,assets/re0-op.mp4.part02,assets/re0-op.mp4.part03" poster="assets/re0-1.jpg" muted playsinline preload="metadata"></video>
-          <span class="play-mark">PLAY THE OPENING <i></i></span>
-        </button>
-        <button class="stage-trigger" data-stage="re0Stage"><span>点击进入异世界</span><i></i></button>
-      </div>
-    </section>
+      <div class="route-afterword" id="routeAfterword"></div>
+      <button class="contact-door" id="contactDoor" aria-label="打开联系方式小门"><span>联系方式</span></button>
+      <div class="world-finale" id="worldFinale"><p>七夕，从来不止一种过法。</p><span>今晚，你已经走过了三种。</span></div>
 
-    <section class="panel outro-panel" data-scene="outro" aria-label="结尾">
-      <div class="outro-stars"></div>
-      <div class="outro-copy">
-        <p>ONE NIGHT · INFINITE POSSIBILITIES</p>
-        <h2>七夕，从来不止<br>一种过法。</h2>
-        <blockquote>爱一个人。爱一个世界。<br>或者，爱上仍在发生的未知。</blockquote>
-        <button class="contact-button" id="contactButton">和我聊聊 <span>↗</span></button>
+      <div class="module-overlay" id="moduleOverlay" aria-hidden="true">
+        <button class="module-back" id="moduleBack">← 回到今晚的选择</button>
+        <div class="module-copy"><p id="moduleKicker"></p><h2 id="moduleTitle"></h2><blockquote id="moduleQuote"></blockquote></div>
+        <div class="module-scatter" id="moduleScatter"></div>
+        <button class="module-film" id="moduleFilm" aria-label="播放视频"><video id="modulePreview" muted playsinline preload="metadata"></video><span>PLAY THE FILM <i></i></span></button>
+        <a class="module-source" id="moduleSource" target="_blank" rel="noopener noreferrer">观看原作 ↗<small>非本人作品，版权归原作者所有</small></a>
       </div>
-      <small>MADE WITH CURIOSITY · 2026</small>
     </section>
   </main>
 
@@ -156,6 +125,7 @@
 
   <div id="prankEnding" class="prank-ending" aria-hidden="true">
     <p><span>哈哈，你在想什么。</span><span>怎么会有这个东西。</span><b>七夕节快乐。</b></p>
+    <button id="restartButton">再选一次今晚的答案</button>
   </div>
 
   <audio id="introAudio" src="assets/intro.mp3" preload="auto"></audio>

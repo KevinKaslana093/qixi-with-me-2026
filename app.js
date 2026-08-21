@@ -1,504 +1,73 @@
 (() => {
   'use strict';
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)), ease=n=>1-Math.pow(1-clamp(n),3);
+  const scenes=['cover','boy','question','man','world'], labels=['邀请','男孩','转折','男人','今晚'], panels=$$('.panel');
+  const loader=$('#loader'),enter=$('#enterButton'),bar=$('#loaderBar'),status=$('#loaderStatus'),experience=$('#experience');
+  const rail=$('#progressRail'),badge=$('#chapterBadge'),hint=$('#scrollHint'),intro=$('#introAudio'),aizo=$('#aizoAudio');
+  const modal=$('#mediaModal'),modalVideo=$('#modalVideo'),moduleOverlay=$('#moduleOverlay'),modulePreview=$('#modulePreview');
+  let current=0,entered=false,transitioning=false,muted=false,aizoStarted=false,questionTimer=0,audioBeforeModal=null;
+  let touch={x:0,y:0},pointer={x:innerWidth/2,y:innerHeight/2},lastNav=0;
 
-  const scenes = ['cover','boy','question','man','game','ai','re0','outro'];
-  const sceneLabels = ['邀请','男孩','转折','男人','游戏','AI','Re:0','尾声'];
-  const panels = [...document.querySelectorAll('.panel')];
-  const experience = document.querySelector('#experience');
-  const loader = document.querySelector('#loader');
-  const enterButton = document.querySelector('#enterButton');
-  const loaderBar = document.querySelector('#loaderBar');
-  const loaderStatus = document.querySelector('#loaderStatus');
-  const progressRail = document.querySelector('#progressRail');
-  const chapterBadge = document.querySelector('#chapterBadge');
-  const scrollHint = document.querySelector('#scrollHint');
-  const introAudio = document.querySelector('#introAudio');
-  const aizoAudio = document.querySelector('#aizoAudio');
-  const soundButton = document.querySelector('#soundButton');
-  const soundLabel = document.querySelector('#soundLabel');
-  const cursor = document.querySelector('#cursor');
-  const modal = document.querySelector('#mediaModal');
-  const modalVideo = document.querySelector('#modalVideo');
-  const modalTitle = document.querySelector('#modalTitle');
-  const closeModalButton = document.querySelector('#closeModal');
-  const genshinPreview = document.querySelector('#genshinPreview');
-  const aiPreview = document.querySelector('#aiPreview');
-  const re0Preview = document.querySelector('#re0Preview');
+  async function hydrate(el,mime){const p=el.dataset.parts?.split(',');if(!p)return;try{const rs=await Promise.all(p.map(x=>fetch(x.trim()))),bs=await Promise.all(rs.map(r=>r.blob()));el.src=URL.createObjectURL(new Blob(bs,{type:mime}));el.load()}catch(e){console.error('媒体装载失败',e)}}
+  hydrate(aizo,'audio/mpeg');intro.volume=.72;aizo.volume=.78;
+  function fade(audio,target,d=450,pause=false){if(!audio)return;const from=audio.volume,start=performance.now();function tick(now){const p=clamp((now-start)/d);audio.volume=from+(target-from)*ease(p);if(p<1)requestAnimationFrame(tick);else if(pause)audio.pause()}requestAnimationFrame(tick)}
+  async function playIntro(reset=false){if(muted)return;if(reset)intro.currentTime=0;aizo.pause();intro.volume=.05;try{await intro.play()}catch(_){}fade(intro,.72,650)}
+  async function playAizo(){if(!aizoStarted){aizoStarted=true;aizo.currentTime=0}if(muted||modal.classList.contains('is-open'))return;intro.pause();aizo.volume=.05;try{await aizo.play()}catch(_){}fade(aizo,.78,650)}
+  function sceneAudio(s){if(!entered||muted)return;if(['cover','boy'].includes(s)){aizo.pause();if(intro.paused)playIntro(s==='boy')}else if(s==='question')fade(intro,0,250,true);else playAizo()}
+  labels.forEach((x,i)=>{const b=document.createElement('button');b.title=x;b.setAttribute('aria-label',`前往${x}`);b.onclick=()=>goTo(i);rail.append(b)});const railButtons=$$('#progressRail button');
+  function updateUI(){railButtons.forEach((b,i)=>b.classList.toggle('is-active',i===current));const s=scenes[current];badge.textContent=s==='boy'?'男孩的七夕':'男人的七夕';badge.classList.toggle('is-visible',['boy','man','world'].includes(s));hint.style.opacity=['question','world'].includes(s)?'0':'.65'}
+  function goTo(i,opt={}){i=clamp(i,0,scenes.length-1);if((transitioning&&!opt.force)||i===current)return;clearTimeout(questionTimer);transitioning=true;panels[current].classList.remove('is-active');current=i;panels[current].classList.add('is-active');updateUI();sceneAudio(scenes[current]);if(scenes[current]==='boy')startBoy();if(scenes[current]==='world')enterWorld();setTimeout(()=>transitioning=false,760);if(scenes[current]==='question'){const q=$('.question-panel p');q.textContent='但今晚，还没有结束。';questionTimer=setTimeout(()=>{q.classList.add('is-switching');setTimeout(()=>{q.textContent='那，男人呢？';q.classList.remove('is-switching')},280)},1200);setTimeout(()=>goTo(3,{force:true}),3000)}}
+  function move(d){if(!entered||modal.classList.contains('is-open')||moduleOverlay.classList.contains('is-open'))return;if(scenes[current]==='world')return stepWorld(d);goTo(current+d)}
+  $$('[data-next]').forEach(b=>b.onclick=()=>move(1));$$('[data-go]').forEach(b=>b.onclick=()=>goTo(+b.dataset.go));
 
-  async function hydrateMultipartMedia(element, mime) {
-    const parts = element.dataset.parts?.split(',').map(item => item.trim()).filter(Boolean);
-    if (!parts?.length) return;
-    try {
-      const responses = await Promise.all(parts.map(part => fetch(part)));
-      if (responses.some(response => !response.ok)) throw new Error('media part unavailable');
-      const blobs = await Promise.all(responses.map(response => response.blob()));
-      element.src = URL.createObjectURL(new Blob(blobs, { type: mime }));
-      element.load();
-    } catch (error) {
-      console.error('媒体装载失败', error);
-    }
-  }
+  /* hand-drawn prologue */
+  const boy=$('#boyCanvas'),bc=boy.getContext('2d'),captions=$$('#boyCaption p');let boyProgress=0,branch=null,choice=false,speed=1,boyRaf=0;
+  function resize(c,ctx){const d=Math.min(devicePixelRatio||1,2);c.width=innerWidth*d;c.height=innerHeight*d;ctx.setTransform(d,0,0,d,0,0)}
+  function line(ctx,a,b,c,d,color='#171513',w=3){ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke()}
+  function person(ctx,x,y,s,f=1,wave=0,color='#171513'){ctx.save();ctx.translate(x,y);ctx.scale(s*f,s);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3/s;ctx.beginPath();ctx.arc(0,-58,16,0,7);ctx.stroke();line(ctx,0,-42,0,24,color,3/s);line(ctx,0,-18,-28,6,color,3/s);line(ctx,0,-18,28,-2-wave*13,color,3/s);line(ctx,0,24,-20,70,color,3/s);line(ctx,0,24,23,70,color,3/s);ctx.beginPath();ctx.arc(6,-61,2.2,0,7);ctx.fill();ctx.restore()}
+  function heart(ctx,x,y,s,a=1){ctx.save();ctx.globalAlpha=a;ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle='#a81720';ctx.beginPath();ctx.moveTo(0,7);ctx.bezierCurveTo(-24,-9,-18,-27,0,-14);ctx.bezierCurveTo(18,-27,24,-9,0,7);ctx.fill();ctx.restore()}
+  function flower(ctx,x,y,s,a=1){ctx.save();ctx.globalAlpha=a;ctx.translate(x,y);line(ctx,0,0,-8,54,'#356247',2);ctx.fillStyle='#a81720';for(let i=0;i<6;i++){ctx.rotate(Math.PI/3);ctx.beginPath();ctx.ellipse(0,-s*.46,s*.22,s*.45,0,0,7);ctx.fill()}ctx.restore()}
+  function bench(ctx,x,y,w){line(ctx,x-w/2,y,x+w/2,y,'#171513',5);line(ctx,x-w*.36,y,x-w*.4,y+42,'#171513',3);line(ctx,x+w*.36,y,x+w*.4,y+42,'#171513',3)}
+  function drawScene(i,l,a,w,h,s){const y=h*.6,c=w*.5,k=ease(l);bc.save();bc.globalAlpha=a;if(i===0){const g=w*.16+(1-k)*w*.22;person(bc,c-g,y,s,1,k*.5);person(bc,c+g,y,s,-1);bc.setLineDash([5,8]);bc.strokeStyle='rgba(168,23,32,.5)';bc.beginPath();bc.moveTo(c-g+20,y-18);bc.quadraticCurveTo(c,y-80,c+g-20,y-18);bc.stroke();bc.setLineDash([])}else if(i===1){person(bc,c-w*.075,y,s,1,.35);person(bc,c+w*.075,y,s,-1,.35);heart(bc,c,y-145,.6,k)}else if(i===2){person(bc,c-w*.055,y,s,1,.2);person(bc,c+w*.055,y,s,-1,.2);bc.strokeStyle='#555';bc.beginPath();bc.arc(c,y-100,85*s,Math.PI,Math.PI*2);bc.stroke();line(bc,c,y-100,c,y-20,'#171513',2)}else if(i===3&&!branch){person(bc,c-w*.09,y,s,1,.2);person(bc,c+w*.09,y,s,-1);flower(bc,c,y-22,18*s,k)}else if(i>=3&&branch==='failure'){if(i===3){person(bc,c-w*.15-k*w*.08,y,s);person(bc,c+w*.15+k*w*.2,y,s,-1);flower(bc,c,y+48,15*s,.7)}else{bench(bc,c,y+45,230*s);person(bc,c,y,s*.92,1,-.3);bc.fillStyle='#527fa4';for(let j=0;j<4;j++){bc.beginPath();bc.ellipse(c+(j%2?9:-9),y-48+j*10,3,7,0,0,7);bc.fill()}if(i===5){line(bc,c-92,y-115,c-12,y-65,'#a81720',2);line(bc,c+13,y-56,c+92,y-12,'#a81720',2)}}}else if(i===4){bench(bc,c,y+45,250*s);person(bc,c-w*.045,y,s*.92,1,.1);person(bc,c+w*.045,y,s*.92,-1,.1);heart(bc,c,y-138,.7,k)}else{person(bc,c-w*.025,y,s,1,.2);person(bc,c+w*.025,y,s,-1,.2);heart(bc,c,y-142,.85,k);bc.strokeStyle='#a81720';bc.lineWidth=2;bc.beginPath();bc.moveTo(c-w*.4,y-30);bc.bezierCurveTo(c-w*.2,y-95,c-w*.08,y+25,c,y-25);bc.bezierCurveTo(c+w*.08,y-75,c+w*.24,y-5,c+w*.44,y-65);bc.stroke()}bc.restore()}
+  function drawBoy(){const w=innerWidth,h=innerHeight;bc.clearRect(0,0,w,h);bc.fillStyle='#f1ece4';bc.fillRect(0,0,w,h);for(let y=42;y<h;y+=56)line(bc,0,y,w,y+9,'rgba(0,0,0,.025)',1);const s=Math.max(.82,Math.min(1.28,w/1100)),q=boyProgress*6,i=Math.min(5,Math.floor(q)),l=q-i,m=ease((l-.82)/.18);drawScene(i,l,1-m,w,h,s);if(i<5&&m)drawScene(i+1,0,m,w,h,s);bc.fillStyle='rgba(0,0,0,.38)';bc.font='11px serif';bc.fillText('A SMALL STORY ABOUT TWO PEOPLE',w*.08,h*.84);requestAnimationFrame(drawBoy)}
+  function startBoy(){cancelAnimationFrame(boyRaf);boyProgress=0;branch=null;choice=false;speed=1;const sb=$('#heartSpeed');sb.querySelector('span').textContent='轻点画面，让他们更快奔向彼此';sb.querySelector('b').textContent='×1';$('#storyChoice').classList.remove('is-show');captions.forEach(c=>c.classList.remove('is-show'));playIntro(true);let last=performance.now(),lastAudio=intro.currentTime;function tick(now){let dt=Math.min(.12,(now-last)/1000);last=now;const at=intro.currentTime;if(!muted&&at>lastAudio)dt=at-lastAudio;lastAudio=at;const duration=intro.duration>1?intro.duration:176;if(!choice)boyProgress=clamp(boyProgress+dt/duration*speed);if(boyProgress>=.46&&!branch&&!choice){choice=true;boyProgress=.46;intro.pause();$('#storyChoice').classList.add('is-show')}const cues=[.06,.2,.37,.54,.7,.86];captions.forEach((c,i)=>c.classList.toggle('is-show',boyProgress>cues[i]&&boyProgress<cues[i]+.2));if(boyProgress<1&&scenes[current]==='boy')boyRaf=requestAnimationFrame(tick);else if(boyProgress>=1)goTo(2,{force:true})}boyRaf=requestAnimationFrame(tick)}
+  $$('#storyChoice [data-branch]').forEach(b=>b.onclick=()=>{branch=b.dataset.branch;choice=false;$('#storyChoice').classList.remove('is-show');const copy=branch==='failure'?['遇见一个人','交换一些心事','差一点说出口','她走向了远处','花没有送出去','有些心意，只来得及经过']:['遇见一个人','交换一些心事','陪她走一段路','分享安静的时刻','送上一束花','有些心意，得到了回应'];copy.forEach((t,i)=>captions[i].textContent=t);if(!muted)intro.play().catch(()=>{})});
+  $('#heartSpeed').onclick=e=>{e.stopPropagation();const ss=[1,2.2,3.5,5],i=Math.min(ss.indexOf(speed)+1,3);speed=ss[i];e.currentTarget.querySelector('span').textContent=i===3?'他们正在全力奔向彼此':'心动正在悄悄加速';e.currentTarget.querySelector('b').textContent=`×${speed}`};
 
-  hydrateMultipartMedia(aizoAudio, 'audio/mpeg');
-  hydrateMultipartMedia(re0Preview, 'video/mp4');
+  const energy=$('#energyCanvas'),ec=energy.getContext('2d'),particles=Array.from({length:65},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.7+.3,s:Math.random()*.0013+.0004}));
+  function drawEnergy(){const w=innerWidth,h=innerHeight;ec.clearRect(0,0,w,h);const g=ec.createRadialGradient(w*.72,h*.46,0,w*.72,h*.46,w*.6);g.addColorStop(0,'rgba(168,23,32,.2)');g.addColorStop(1,'transparent');ec.fillStyle=g;ec.fillRect(0,0,w,h);particles.forEach(p=>{p.y-=p.s;if(p.y<0)p.y=1;ec.fillStyle='#ffffff66';ec.beginPath();ec.arc(p.x*w,p.y*h,p.r,0,7);ec.fill()});requestAnimationFrame(drawEnergy)}
 
-  let current = 0;
-  let transitioning = false;
-  let entered = false;
-  let globalMuted = false;
-  let aizoStarted = false;
-  let questionTimer = 0;
-  let wheelTimer = 0;
-  let wheelLocked = false;
-  let boyAnimation = 0;
-  let romanceBranch = null;
-  let choicePending = false;
-  let speedIndex = 0;
-  let animationSpeed = 1;
-  let audioBeforeModal = null;
+  /* spatial wall */
+  const world=$('.world-panel'),wc=$('#worldCanvas'),ctx=wc.getContext('2d'),nodes={game:$('.node-game'),ai:$('.node-ai'),anime:$('.node-anime')};
+  const milestones={game:.22,ai:.51,anime:.76},visited=new Set();let worldProgress=0,worldPhase='intro',yaw=0,targetYaw=0,pull=0,activeModule=null,doorClicks=0,afterTimer=0;
+  const route=[[-1.18,.12],[-1.02,-.2],[-.78,-.3],[-.58,-.1],[-.7,.16],[-.96,.22],[-1.13,.08],[-.72,.02],[-.38,.02],[-.28,-.12],[-.18,.17],[-.07,-.18],[.04,.15],[.17,-.1],[.32,.03],[.5,.03],[.68,-.08],[.82,-.18],[.98,-.09],[1.04,.08],[.9,.2],[.7,.16],[.62,.02],[.9,.02],[1.18,.18],[.9,.36],[.58,.29],[.35,.12],[.08,.03]],nodePos={game:{x:-.76,y:-.08},ai:{x:.02,y:-.08},anime:{x:.82,y:.03}};
+  function pointAt(p){const k=p*(route.length-1),i=Math.floor(k),f=k-i,a=route[Math.min(i,route.length-1)],b=route[Math.min(i+1,route.length-1)];return{x:a[0]+(b[0]-a[0])*f,y:a[1]+(b[1]-a[1])*f}}
+  function project(p){const s=Math.min(innerWidth,innerHeight)*(.47-pull*.08),r=p.x-yaw,d=Math.cos(r*1.06);return{x:innerWidth/2+Math.sin(r*1.22)*s*1.22,y:innerHeight/2+p.y*s-d*26*(1-pull),scale:clamp(.72+d*.22-pull*.08,.5,1.05),depth:d}}
+  function enterWorld(){worldPhase='intro';worldProgress=0;yaw=route[0][0];targetYaw=yaw;pull=0;world.className='panel world-panel is-active';setTimeout(()=>{if(scenes[current]==='world'){worldPhase='tour';world.classList.add('is-touring')}},900)}
+  function stepWorld(d){if(activeModule)return;if(worldPhase==='intro'){worldPhase='tour';world.classList.add('is-touring')}if(worldPhase==='tour'){worldProgress=clamp(worldProgress+d*.038);if(d<0&&worldProgress===0)return goTo(3);if(worldProgress>=1){worldPhase='pullback';setTimeout(()=>{worldPhase='explore';pull=1;targetYaw=0;world.classList.add('is-exploring')},900)}}}
+  function drawWorld(t){const w=innerWidth,h=innerHeight;ctx.clearRect(0,0,w,h);const pulse=(Math.sin(t/1600)+1)/2,g=ctx.createRadialGradient(w*(.4+.22*Math.sin(t/4200)),h*.42,0,w*.5,h*.5,w*.85);g.addColorStop(0,`rgb(${82+30*pulse},10,18)`);g.addColorStop(.5,'#2a080d');g.addColorStop(1,'#050405');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);for(let i=-12;i<=12;i++){const x=i/8+yaw,p=project({x,y:-.72}),q=project({x,y:.78});line(ctx,p.x,p.y,q.x,q.y,'rgba(255,255,255,.025)',1)}const total=route.length*12;ctx.beginPath();for(let i=0;i<=total;i++){const p=project(pointAt(i/total));i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}ctx.strokeStyle='rgba(119,25,34,.52)';ctx.lineWidth=2;ctx.stroke();const lit=Math.floor(total*worldProgress);ctx.beginPath();for(let i=0;i<=lit;i++){const p=project(pointAt(i/total));i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}ctx.strokeStyle='#fff8';ctx.shadowBlur=16;ctx.shadowColor='#fff';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;const wp=project(pointAt(worldProgress));person(ctx,wp.x,wp.y+42,Math.max(.48,wp.scale*.72),1,Math.sin(t/220)*.16,'#fff');const end=project(route.at(-1)),door=$('#contactDoor');door.style.left=`${end.x}px`;door.style.top=`${end.y-8}px`;if(['tour','pullback'].includes(worldPhase))targetYaw=pointAt(clamp(worldProgress+.05)).x;yaw+=(targetYaw-yaw)*.055;if(worldPhase==='pullback')pull+=(1-pull)*.035;Object.entries(nodePos).forEach(([k,v])=>{const p=project(v),el=nodes[k];el.style.left=`${p.x}px`;el.style.top=`${p.y}px`;if(!el.matches(':hover'))el.style.transform=`translate(-50%,-50%) scale(${p.scale})`});Object.entries(milestones).forEach(([k,v])=>nodes[k].classList.toggle('is-awake',worldProgress>=v-.08));$('#worldProgressBar').style.width=`${worldProgress*100}%`;$('#worldProgressLabel').textContent=`沿着光 · ${Math.round(worldProgress*100)}%`;requestAnimationFrame(drawWorld)}
 
-  introAudio.volume = .72;
-  aizoAudio.volume = .78;
+  const data={game:{k:'01 / ENTER ANOTHER WORLD',t:'殴打一些\n游戏。',q:'有人奔赴约会，有人奔赴另一个世界。都算赴约。',v:'assets/genshin-start.mp4',time:12.3,imgs:['game-ice.jpg','game-comic.jpg','game-red.jpg','game-soft.jpg']},ai:{k:'02 / TALK TO THE UNKNOWN',t:'训练一些\nAI。',q:'有人交换心意，有人向未知发问。好奇心，也是一种心动。',v:'assets/ai-shinjuku.mp4',imgs:['ai-kimi.png','ai-chatgpt.png','ai-whale.jpg','ai-group.jpg'],source:'https://www.bilibili.com/video/BV1pvbX6cE5s'},anime:{k:'03 / MEET AT FRAME 24',t:'欣赏一些\n作品。',q:'有些相遇发生在现实，有些相遇发生在第二十四帧。',parts:['assets/re0-op.mp4.part01','assets/re0-op.mp4.part02','assets/re0-op.mp4.part03'],imgs:['re0-1.jpg','re0-2.jpg','re0-3.jpg','re0-4.jpg','re0-5.jpg']}};
+  async function parts(xs){const rs=await Promise.all(xs.map(x=>fetch(x))),bs=await Promise.all(rs.map(r=>r.blob()));return URL.createObjectURL(new Blob(bs,{type:'video/mp4'}))}
+  async function openModule(k){if(worldPhase!=='explore')return;activeModule=k;visited.add(k);world.classList.add('has-module');moduleOverlay.classList.add('is-open');const d=data[k];$('#moduleKicker').textContent=d.k;$('#moduleTitle').innerHTML=d.t.replace('\n','<br>');$('#moduleQuote').textContent=d.q;$('#moduleScatter').innerHTML=d.imgs.map((x,i)=>`<img src="assets/${x}" alt="" style="--si:${i};--sx:${[-20,24,-27,23,0][i]}vw;--sy:${[-25,-23,24,23,32][i]}vh;--sr:${[-8,7,6,-7,2][i]}deg">`).join('');$('#moduleSource').classList.toggle('is-hidden',!d.source);if(d.source)$('#moduleSource').href=d.source;modulePreview.src=d.parts?await parts(d.parts):d.v;modulePreview.load();modulePreview.onloadedmetadata=()=>{modulePreview.currentTime=d.time||0;modulePreview.play().catch(()=>{})}}
+  function after(text){clearTimeout(afterTimer);const e=$('#routeAfterword');e.classList.remove('is-show');e.textContent=text;requestAnimationFrame(()=>e.classList.add('is-show'));afterTimer=setTimeout(()=>e.classList.remove('is-show'),5200)}
+  function closeModule(){if(!activeModule)return;const d=data[activeModule];modulePreview.pause();modulePreview.removeAttribute('src');modulePreview.load();activeModule=null;moduleOverlay.classList.remove('is-open');world.classList.remove('has-module');after(d.q);if(visited.size===3){$('#contactDoor').classList.add('is-ready');$('#worldFinale').classList.add('is-show');world.classList.add('is-final')}}
+  Object.entries(nodes).forEach(([k,n])=>n.onclick=()=>openModule(k));$('#moduleBack').onclick=closeModule;
+  $('#moduleFilm').onclick=()=>{if(activeModule)openModal(activeModule,modulePreview.src,data[activeModule].time||0)};
+  function openModal(k,src,time){modulePreview.pause();audioBeforeModal=!aizo.paused?aizo:(!intro.paused?intro:null);if(audioBeforeModal)fade(audioBeforeModal,0,300,true);modalVideo.src=src;modalTitle.textContent=k==='game'?'GENSHIN IMPACT · START':k==='ai'?'牛来：新宿决战 · 非本人作品':'RE:ZERO · OPENING';modal.classList.add('is-open');modalVideo.load();modalVideo.onloadedmetadata=()=>{modalVideo.currentTime=time;if(!muted)modalVideo.play().catch(()=>{})}}
+  function closeModal(){modal.classList.remove('is-open');modalVideo.pause();modalVideo.removeAttribute('src');modalVideo.load();if(audioBeforeModal&&!muted){audioBeforeModal.volume=.05;audioBeforeModal.play().catch(()=>{});fade(audioBeforeModal,audioBeforeModal===aizo?.78:.72,600)}audioBeforeModal=null;if(activeModule)modulePreview.play().catch(()=>{})}
+  $('#closeModal').onclick=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal()};modalVideo.onended=closeModal;
+  $('#contactDoor').onclick=()=>{if(++doorClicks===1){$('#worldFinale p').textContent='你真的想知道吗？';$('#worldFinale span').textContent='再推一次这扇门。';return}document.body.classList.add('is-collapsing');fade(aizo,0,650,true);setTimeout(()=>$('#prankEnding').classList.add('is-show'),260)};
+  $('#restartButton').onclick=()=>{document.body.classList.remove('is-collapsing');$('#prankEnding').classList.remove('is-show');visited.clear();doorClicks=0;$('#contactDoor').classList.remove('is-ready');$('#worldFinale').classList.remove('is-show');$('#worldFinale p').textContent='七夕，从来不止一种过法。';$('#worldFinale span').textContent='今晚，你已经走过了三种。';Object.values(nodes).forEach(n=>n.classList.remove('is-awake'));aizo.pause();aizoStarted=false;goTo(0,{force:true});playIntro(true)};
 
-  sceneLabels.forEach((label, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.setAttribute('aria-label', `前往${label}`);
-    button.title = label;
-    button.addEventListener('click', () => goTo(index));
-    progressRail.appendChild(button);
-  });
-
-  const railButtons = [...progressRail.querySelectorAll('button')];
-
-  function updateUI() {
-    railButtons.forEach((button, index) => button.classList.toggle('is-active', index === current));
-    const scene = scenes[current];
-    const showBoy = scene === 'boy';
-    const showMan = ['man','game','ai','re0'].includes(scene);
-    chapterBadge.textContent = showBoy ? '男孩的七夕' : '男人的七夕';
-    chapterBadge.classList.toggle('is-visible', showBoy || showMan);
-    scrollHint.style.opacity = scene === 'question' ? '0' : '.65';
-  }
-
-  function fadeAudio(audio, target, duration = 450, pauseAfter = false) {
-    if (!audio) return Promise.resolve();
-    const start = audio.volume;
-    const startAt = performance.now();
-    return new Promise(resolve => {
-      const tick = now => {
-        const p = Math.min(1, (now - startAt) / duration);
-        audio.volume = start + (target - start) * (1 - Math.pow(1 - p, 3));
-        if (p < 1) requestAnimationFrame(tick);
-        else {
-          if (pauseAfter) audio.pause();
-          resolve();
-        }
-      };
-      requestAnimationFrame(tick);
-    });
-  }
-
-  async function startIntro() {
-    if (globalMuted) return;
-    aizoAudio.pause();
-    introAudio.currentTime = 0;
-    introAudio.volume = .05;
-    try { await introAudio.play(); } catch (_) {}
-    fadeAudio(introAudio, .72, 700);
-  }
-
-  async function startAizo() {
-    if (!aizoStarted) {
-      aizoAudio.currentTime = 0;
-      aizoStarted = true;
-    }
-    if (globalMuted || modal.classList.contains('is-open')) return;
-    introAudio.pause();
-    aizoAudio.volume = .05;
-    try { await aizoAudio.play(); } catch (_) {}
-    fadeAudio(aizoAudio, .78, 700);
-  }
-
-  function handleSceneAudio(scene) {
-    if (!entered || globalMuted || modal.classList.contains('is-open')) return;
-    if (scene === 'cover' || scene === 'boy') {
-      aizoAudio.pause();
-      if (introAudio.paused) startIntro();
-    } else if (scene === 'question') {
-      fadeAudio(introAudio, 0, 260, true);
-    } else {
-      startAizo();
-    }
-  }
-
-  function resetPanelInteractions(leavingScene) {
-    if (leavingScene === 'game') genshinPreview.pause();
-    if (leavingScene === 'ai') aiPreview.pause();
-    if (leavingScene === 're0') re0Preview.pause();
-  }
-
-  function activatePreview(scene) {
-    if (scene === 'game' && document.querySelector('#gameStage').classList.contains('is-open')) {
-      if (!Number.isFinite(genshinPreview.currentTime) || genshinPreview.currentTime < 14) genshinPreview.currentTime = 14.2;
-      genshinPreview.play().catch(() => {});
-    }
-    if (scene === 're0' && document.querySelector('#re0Stage').classList.contains('is-open')) {
-      if (re0Preview.currentTime < 4) re0Preview.currentTime = 7;
-      re0Preview.play().catch(() => {});
-    }
-    if (scene === 'ai' && document.querySelector('#aiStage').classList.contains('is-open')) {
-      if (aiPreview.currentTime < 1) aiPreview.currentTime = 1;
-      aiPreview.play().catch(() => {});
-    }
-  }
-
-  function goTo(index, options = {}) {
-    index = Math.max(0, Math.min(scenes.length - 1, index));
-    if ((transitioning && !options.force) || index === current) return;
-    clearTimeout(questionTimer);
-    transitioning = true;
-    const oldScene = scenes[current];
-    resetPanelInteractions(oldScene);
-    panels[current].classList.remove('is-active');
-    current = index;
-    panels[current].classList.add('is-active');
-    updateUI();
-    handleSceneAudio(scenes[current]);
-    if (scenes[current] === 'boy') startBoyAnimation();
-    activatePreview(scenes[current]);
-    setTimeout(() => { transitioning = false; }, 760);
-    if (scenes[current] === 'question') {
-      questionTimer = setTimeout(() => goTo(3, { force: true }), 2350);
-    }
-  }
-
-  function move(direction) {
-    if (!entered || modal.classList.contains('is-open')) return;
-    goTo(current + direction);
-  }
-
-  document.querySelectorAll('[data-next]').forEach(button => button.addEventListener('click', () => move(1)));
-  document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => goTo(Number(button.dataset.go))));
-
-  addEventListener('wheel', event => {
-    if (!entered || modal.classList.contains('is-open') || Math.abs(event.deltaY) < 10) return;
-    clearTimeout(wheelTimer);
-    wheelTimer = setTimeout(() => { wheelLocked = false; }, 360);
-    if (wheelLocked) return;
-    wheelLocked = true;
-    move(event.deltaY > 0 ? 1 : -1);
-  }, { passive: true });
-
-  addEventListener('keydown', event => {
-    if (event.key === 'Escape' && modal.classList.contains('is-open')) return closeModal();
-    if (modal.classList.contains('is-open')) return;
-    if (['ArrowDown','PageDown','Enter',' '].includes(event.key)) { event.preventDefault(); move(1); }
-    if (['ArrowUp','PageUp'].includes(event.key)) { event.preventDefault(); move(-1); }
-  });
-
-  let touchStart = 0;
-  addEventListener('touchstart', event => { touchStart = event.touches[0].clientY; }, { passive: true });
-  addEventListener('touchend', event => {
-    if (!touchStart || modal.classList.contains('is-open')) return;
-    const delta = touchStart - event.changedTouches[0].clientY;
-    if (Math.abs(delta) > 45) move(delta > 0 ? 1 : -1);
-    touchStart = 0;
-  }, { passive: true });
-
-  document.querySelectorAll('.stage-trigger').forEach(trigger => {
-    trigger.addEventListener('click', event => {
-      event.stopPropagation();
-      const stage = document.querySelector(`#${trigger.dataset.stage}`);
-      stage.classList.add('is-open');
-      activatePreview(scenes[current]);
-      navigator.vibrate?.(28);
-    });
-  });
-
-  genshinPreview.addEventListener('loadedmetadata', () => { genshinPreview.currentTime = 14.2; });
-  genshinPreview.addEventListener('timeupdate', () => {
-    if (genshinPreview.currentTime > 14.35) document.querySelector('#genshinPreviewWrap').classList.add('has-frame');
-    if (genshinPreview.currentTime >= 22.25) genshinPreview.currentTime = 14.2;
-  });
-  re0Preview.addEventListener('loadedmetadata', () => { re0Preview.currentTime = 7; });
-  re0Preview.addEventListener('ended', () => { re0Preview.currentTime = 7; re0Preview.play().catch(() => {}); });
-  aiPreview.addEventListener('loadedmetadata', () => { aiPreview.currentTime = 1; });
-  aiPreview.addEventListener('ended', () => { aiPreview.currentTime = 1; aiPreview.play().catch(() => {}); });
-
-  document.querySelectorAll('[data-video]').forEach(button => {
-    button.addEventListener('click', event => {
-      event.stopPropagation();
-      if (!button.closest('.scatter-stage').classList.contains('is-open')) return;
-      openModal(button.dataset.video);
-    });
-  });
-
-  async function openModal(kind) {
-    const isGenshin = kind === 'genshin';
-    const isAi = kind === 'ai';
-    const preview = isGenshin ? genshinPreview : (isAi ? aiPreview : re0Preview);
-    preview.pause();
-    audioBeforeModal = !aizoAudio.paused ? aizoAudio : (!introAudio.paused ? introAudio : null);
-    if (audioBeforeModal) await fadeAudio(audioBeforeModal, 0, 320, true);
-    modalVideo.src = isGenshin ? 'assets/genshin-start.mp4' : (isAi ? 'assets/ai-shinjuku.mp4' : re0Preview.src);
-    modalTitle.textContent = isGenshin ? 'GENSHIN IMPACT · START' : (isAi ? '牛来：新宿决战 · 非本人作品' : 'RE:ZERO · OPENING');
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden', 'false');
-    modalVideo.load();
-    modalVideo.addEventListener('loadedmetadata', function onMeta() {
-      modalVideo.removeEventListener('loadedmetadata', onMeta);
-      modalVideo.currentTime = isGenshin ? 12.3 : (isAi ? 0 : 0);
-      if (!globalMuted) modalVideo.play().catch(() => {});
-    });
-  }
-
-  function closeModal() {
-    modal.classList.remove('is-open');
-    modal.setAttribute('aria-hidden', 'true');
-    modalVideo.pause();
-    modalVideo.removeAttribute('src');
-    modalVideo.load();
-    if (audioBeforeModal && !globalMuted) {
-      audioBeforeModal.volume = .05;
-      audioBeforeModal.play().catch(() => {});
-      fadeAudio(audioBeforeModal, audioBeforeModal === aizoAudio ? .78 : .72, 650);
-    }
-    audioBeforeModal = null;
-    activatePreview(scenes[current]);
-  }
-
-  closeModalButton.addEventListener('click', closeModal);
-  modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
-  modalVideo.addEventListener('ended', closeModal);
-
-  soundButton.addEventListener('click', () => {
-    globalMuted = !globalMuted;
-    soundButton.classList.toggle('is-muted', globalMuted);
-    soundLabel.textContent = globalMuted ? 'SOUND OFF' : 'SOUND ON';
-    if (globalMuted) {
-      introAudio.pause();
-      aizoAudio.pause();
-      modalVideo.muted = true;
-    } else {
-      modalVideo.muted = false;
-      handleSceneAudio(scenes[current]);
-    }
-  });
-
-  let contactClicks=0;
-  document.querySelector('#contactButton').addEventListener('click', event => {
-    const button = event.currentTarget;
-    contactClicks++;
-    if(contactClicks===1){button.firstChild.textContent='你真的想知道吗？再点一次 ';button.classList.add('is-armed');return}
-    document.body.classList.add('is-collapsing');fadeAudio(aizoAudio,0,650,true);fadeAudio(introAudio,0,650,true);const ending=document.querySelector('#prankEnding');setTimeout(()=>{ending.classList.add('is-show');ending.setAttribute('aria-hidden','false')},260);
-  });
-
-  // Custom cursor and gentle scene parallax.
-  let pointerX = innerWidth / 2, pointerY = innerHeight / 2, cursorX = pointerX, cursorY = pointerY;
-  addEventListener('pointermove', event => {
-    pointerX = event.clientX; pointerY = event.clientY;
-    const activeStage = panels[current]?.querySelector('.scatter-stage.is-open');
-    if (activeStage) {
-      const dx = (pointerX / innerWidth - .5) * 9;
-      const dy = (pointerY / innerHeight - .5) * 7;
-      activeStage.style.transform = `translate3d(${dx}px,${dy}px,0)`;
-    }
-  });
-  document.querySelectorAll('button,.scatter-card').forEach(el => {
-    el.addEventListener('pointerenter', () => cursor.classList.add('is-over'));
-    el.addEventListener('pointerleave', () => cursor.classList.remove('is-over'));
-  });
-  function animateCursor() {
-    cursorX += (pointerX - cursorX) * .17;
-    cursorY += (pointerY - cursorY) * .17;
-    cursor.style.left = `${cursorX}px`;
-    cursor.style.top = `${cursorY}px`;
-    requestAnimationFrame(animateCursor);
-  }
-  animateCursor();
-
-  // Hand-drawn, scroll-era romance animation.
-  const boyCanvas = document.querySelector('#boyCanvas');
-  const boyCtx = boyCanvas.getContext('2d');
-  const captions = [...document.querySelectorAll('#boyCaption p')];
-  let boyProgress = 0;
-
-  function resizeCanvas(canvas, ctx) {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    canvas.width = Math.round(innerWidth * dpr);
-    canvas.height = Math.round(innerHeight * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-  }
-  resizeCanvas(boyCanvas, boyCtx);
-
-  function line(ctx, x1, y1, x2, y2, color = '#171513', width = 3) {
-    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-  }
-  function stickPerson(ctx, x, y, scale, facing = 1, wave = 0, color = '#171513') {
-    ctx.save(); ctx.translate(x,y); ctx.scale(scale*facing,scale);
-    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3/scale; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(0,-58,16,0,Math.PI*2); ctx.stroke();
-    line(ctx,0,-42,0,24,color,3/scale);
-    line(ctx,0,-18,-28,6,color,3/scale);
-    line(ctx,0,-18,28,-2-wave*13,color,3/scale);
-    line(ctx,0,24,-20,70,color,3/scale);
-    line(ctx,0,24,23,70,color,3/scale);
-    ctx.beginPath(); ctx.arc(6,-61,2.2,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
-  function drawFlower(ctx, x, y, size, alpha) {
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x,y);
-    line(ctx,0,0,-8,54,'#356247',2);
-    ctx.fillStyle = '#a81720';
-    for (let i=0;i<6;i++) { ctx.rotate(Math.PI/3); ctx.beginPath(); ctx.ellipse(0,-size*.46,size*.22,size*.45,0,0,Math.PI*2); ctx.fill(); }
-    ctx.fillStyle='#6c1016'; ctx.beginPath(); ctx.arc(0,0,size*.17,0,Math.PI*2); ctx.fill(); ctx.restore();
-  }
-  function drawUmbrella(ctx,x,y,size,alpha){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#171513';ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(x,y,size,Math.PI,Math.PI*2);ctx.stroke();line(ctx,x,y,x,y+78,'#171513',2.4);ctx.beginPath();ctx.arc(x-12,y+78,12,0,Math.PI);ctx.stroke();ctx.restore()}
-  function drawBench(ctx,x,y,w,alpha){ctx.save();ctx.globalAlpha=alpha;line(ctx,x-w/2,y,x+w/2,y,'#171513',5);line(ctx,x-w*.36,y,x-w*.4,y+42,'#171513',3);line(ctx,x+w*.36,y,x+w*.4,y+42,'#171513',3);ctx.restore()}
-  function drawHeart(ctx,x,y,size,alpha){ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.scale(size,size);ctx.fillStyle='#a81720';ctx.beginPath();ctx.moveTo(0,7);ctx.bezierCurveTo(-24,-9,-18,-27,0,-14);ctx.bezierCurveTo(18,-27,24,-9,0,7);ctx.fill();ctx.restore()}
-  function drawSparkles(ctx,w,h,amount,alpha){ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle='#a81720';for(let i=0;i<amount;i++){const x=(i*137.5%100)/100*w;const y=(i*71.3%72)/100*h+h*.08;const r=1+(i%3)*.65;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill()}ctx.restore()}
-  function drawTears(ctx,x,y,amount,alpha){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#527fa4';ctx.fillStyle='#527fa4';ctx.lineWidth=2;for(let i=0;i<amount;i++){const dx=(i%2?8:-8)+(i-1)*3;ctx.beginPath();ctx.moveTo(x+dx,y+i*7);ctx.quadraticCurveTo(x+dx-4,y+13+i*8,x+dx,y+19+i*9);ctx.stroke();ctx.beginPath();ctx.arc(x+dx,y+22+i*9,2.5,0,Math.PI*2);ctx.fill()}ctx.restore()}
-  function easeOut(x){ return 1-Math.pow(1-Math.max(0,Math.min(1,x)),3); }
-
-  function drawRomanceScene(index,local,alpha,w,h,scale){
-    const baseY=h*.59;const center=w*.5;const arrive=easeOut(local);
-    boyCtx.save();boyCtx.globalAlpha=alpha;
-    if(index===0){
-      const gap=w*.16+(1-arrive)*w*.23;
-      stickPerson(boyCtx,center-gap,baseY,scale,1,arrive*.45);
-      stickPerson(boyCtx,center+gap,baseY,scale,-1,0);
-      boyCtx.strokeStyle=`rgba(168,23,32,${.18+arrive*.45})`;boyCtx.lineWidth=1.2;boyCtx.setLineDash([5,8]);boyCtx.beginPath();boyCtx.moveTo(center-gap+22,baseY-18);boyCtx.quadraticCurveTo(center,baseY-72,center+gap-22,baseY-18);boyCtx.stroke();boyCtx.setLineDash([]);
-    }else if(index===1){
-      stickPerson(boyCtx,center-w*.075,baseY,scale,1,.35);stickPerson(boyCtx,center+w*.075,baseY,scale,-1,.35);
-      for(let i=0;i<3;i++){boyCtx.strokeStyle=`rgba(23,21,19,${.16+i*.1})`;boyCtx.beginPath();boyCtx.arc(center+(i-1)*24,baseY-112-i*7,3+i,0,Math.PI*2);boyCtx.stroke()}
-      drawHeart(boyCtx,center,baseY-145,.55,.25+arrive*.75);
-    }else if(index===2){
-      const step=Math.sin(local*Math.PI*8)*5;stickPerson(boyCtx,center-w*.055,baseY+step,scale,1,.25);stickPerson(boyCtx,center+w*.055,baseY-step,scale,-1,.25);
-      drawUmbrella(boyCtx,center,baseY-102,82*scale,.35+arrive*.65);
-      for(let i=0;i<18;i++)line(boyCtx,center-150+(i*37)%300,baseY-150+(i%4)*18,center-158+(i*37)%300,baseY-132+(i%4)*18,'rgba(82,102,117,.25)',1);
-    }else if(index===3&&romanceBranch!=='failure'){
-      drawBench(boyCtx,center,baseY+45,250*scale,1);stickPerson(boyCtx,center-w*.045,baseY,scale*.92,1,.1);stickPerson(boyCtx,center+w*.045,baseY,scale*.92,-1,.1);
-      boyCtx.strokeStyle='rgba(168,23,32,.35)';boyCtx.beginPath();boyCtx.arc(center,baseY-68,118*scale,Math.PI*1.08,Math.PI*1.92);boyCtx.stroke();
-    }else if(index===4&&romanceBranch!=='failure'){
-      const gap=w*.09;stickPerson(boyCtx,center-gap,baseY,scale,1,arrive*.75);stickPerson(boyCtx,center+gap,baseY,scale,-1,.15);drawFlower(boyCtx,center,baseY-26,18*scale,arrive);drawHeart(boyCtx,center+gap+8,baseY-102,.48,arrive);
-    }else if(index>=3&&romanceBranch==='failure'){
-      if(index===3){
-        stickPerson(boyCtx,center-w*.12-arrive*w*.08,baseY,scale,1,0);stickPerson(boyCtx,center+w*.12+arrive*w*.2,baseY,scale,-1,0);drawFlower(boyCtx,center-w*.02,baseY+52,15*scale,.85);for(let i=0;i<16;i++)line(boyCtx,center-210+(i*41)%420,baseY-170+(i%3)*19,center-219+(i*41)%420,baseY-148+(i%3)*19,'rgba(82,102,117,.28)',1);
-      }else if(index===4){
-        drawBench(boyCtx,center,baseY+45,230*scale,1);stickPerson(boyCtx,center,baseY,scale*.92,1,-.2);drawTears(boyCtx,center+7,baseY-56,3,.4+arrive*.6);drawFlower(boyCtx,center+92,baseY+51,13*scale,.6);
-      }else{
-        stickPerson(boyCtx,center,baseY,scale,1,-.35);drawTears(boyCtx,center+7,baseY-56,4,1);boyCtx.strokeStyle=`rgba(168,23,32,${.5+arrive*.3})`;boyCtx.setLineDash([5,7]);boyCtx.beginPath();boyCtx.arc(center,baseY-26,(90+arrive*65)*scale,0,Math.PI*2);boyCtx.stroke();boyCtx.setLineDash([]);line(boyCtx,center-24,baseY-144,center+25,baseY-112,'#a81720',2);line(boyCtx,center+25,baseY-144,center-24,baseY-112,'#a81720',2);
-      }
-    }else{
-      stickPerson(boyCtx,center-w*.025,baseY,scale,1,.2);stickPerson(boyCtx,center+w*.025,baseY,scale,-1,.2);drawSparkles(boyCtx,w,h,34,arrive);
-      const ring=80+arrive*130;boyCtx.strokeStyle=`rgba(168,23,32,${.65-arrive*.3})`;boyCtx.lineWidth=1.3;boyCtx.beginPath();boyCtx.arc(center,baseY-20,ring*scale,0,Math.PI*2);boyCtx.stroke();drawHeart(boyCtx,center,baseY-142,.8,arrive);
-    }
-    boyCtx.restore();
-  }
-
-  function drawBoy() {
-    const w = innerWidth, h = innerHeight;
-    boyCtx.clearRect(0,0,w,h);
-    const warmth=Math.min(1,boyProgress*1.2);boyCtx.fillStyle=`rgb(${Math.round(241+warmth*6)},${Math.round(236-warmth*5)},${Math.round(228-warmth*10)})`; boyCtx.fillRect(0,0,w,h);
-    boyCtx.strokeStyle='rgba(0,0,0,.035)'; boyCtx.lineWidth=1;
-    for(let y=40;y<h;y+=56){boyCtx.beginPath();boyCtx.moveTo(0,y);boyCtx.lineTo(w,y+10);boyCtx.stroke();}
-    const scale = Math.max(.82,Math.min(1.28,w/1100));
-    const sequence=boyProgress*6;const scene=Math.min(5,Math.floor(sequence));const local=sequence-scene;const mix=easeOut((local-.82)/.18);
-    drawRomanceScene(scene,local,1-mix,w,h,scale);if(scene<5&&mix>0)drawRomanceScene(scene+1,0,mix,w,h,scale);
-    boyCtx.fillStyle='rgba(0,0,0,.42)'; boyCtx.font='11px serif'; boyCtx.letterSpacing='4px';
-    boyCtx.fillText('A SMALL STORY ABOUT TWO PEOPLE',w*.08,h*.84);
-  }
-  function boyLoop() {
-    drawBoy();
-    requestAnimationFrame(boyLoop);
-  }
-  boyLoop();
-
-  function startBoyAnimation() {
-    cancelAnimationFrame(boyAnimation);
-    boyProgress = 0;
-    romanceBranch = null;
-    choicePending = false;
-    speedIndex=0;animationSpeed=1;introAudio.playbackRate=1;const speedButton=document.querySelector('#heartSpeed');speedButton.classList.remove('is-fast');speedButton.querySelector('span').textContent='轻点画面，让他们更快奔向彼此';speedButton.querySelector('b').textContent='×1';
-    const choice=document.querySelector('#storyChoice');choice.classList.remove('is-show');choice.setAttribute('aria-hidden','true');
-    const successCopy=['遇见一个人','交换一些心事','陪她走一段路','分享安静的时刻','送上一束花','把今晚写进星光里'];
-    captions.forEach((caption,index)=>caption.textContent=successCopy[index]);
-    captions.forEach(c => c.classList.remove('is-show'));
-    if(!globalMuted){introAudio.currentTime=0;introAudio.volume=.72;introAudio.play().catch(()=>{})}
-    const start = performance.now();
-    let lastTick=start,lastAudioTime=introAudio.currentTime;
-    const tick = now => {
-      const duration=Number.isFinite(introAudio.duration)&&introAudio.duration>1?introAudio.duration:75;
-      const delta=Math.min(120,now-lastTick);lastTick=now;const audioNow=introAudio.currentTime;const timelineDelta=globalMuted?delta/1000:Math.max(0,audioNow-lastAudioTime);lastAudioTime=audioNow;
-      if(!choicePending)boyProgress=Math.min(1,boyProgress+timelineDelta/duration*animationSpeed);
-      if(boyProgress>=.46&&!romanceBranch&&!choicePending){choicePending=true;boyProgress=.46;introAudio.pause();choice.classList.add('is-show');choice.setAttribute('aria-hidden','false')}
-      const cue=[.06,.2,.37,.54,.7,.86];captions.forEach((caption,index)=>caption.classList.toggle('is-show',boyProgress>cue[index]&&boyProgress<cue[index]+.2));
-      if (boyProgress < 1 && scenes[current] === 'boy') boyAnimation=requestAnimationFrame(tick);
-    };
-    boyAnimation=requestAnimationFrame(tick);
-  }
-  document.querySelectorAll('#storyChoice [data-branch]').forEach(button=>button.addEventListener('click',()=>{
-    romanceBranch=button.dataset.branch;choicePending=false;const choice=document.querySelector('#storyChoice');choice.classList.remove('is-show');choice.setAttribute('aria-hidden','true');
-    if(romanceBranch==='failure'){const copy=['遇见一个人','交换一些心事','差一点说出口','她走向了远处','花没有送出去','有些七夕，只剩一个人'];captions.forEach((caption,index)=>caption.textContent=copy[index])}
-    if(!globalMuted)introAudio.play().catch(()=>{});
-  }));
-  document.querySelector('#heartSpeed').addEventListener('click',event=>{
-    event.stopPropagation();const speeds=[1,2.2,3.5,5];speedIndex=Math.min(speedIndex+1,speeds.length-1);animationSpeed=speeds[speedIndex];const button=event.currentTarget;button.classList.add('is-fast');button.querySelector('span').textContent=speedIndex===speeds.length-1?'他们正在全力奔向彼此':'心动正在悄悄加速';button.querySelector('b').textContent=`×${speeds[speedIndex]}`;
-  });
-  introAudio.addEventListener('ended',()=>{if(scenes[current]==='boy')goTo(2,{force:true})});
-
-  // Living background for the "man" reveal.
-  const energyCanvas = document.querySelector('#energyCanvas');
-  const energyCtx = energyCanvas.getContext('2d');
-  const particles = Array.from({length:72},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.8+.3,s:Math.random()*.0015+.0004,a:Math.random()*.5+.1}));
-  resizeCanvas(energyCanvas,energyCtx);
-  function energyLoop(t) {
-    const w=innerWidth,h=innerHeight;
-    energyCtx.clearRect(0,0,w,h);
-    const grad=energyCtx.createRadialGradient(w*.72,h*.45,0,w*.72,h*.45,w*.55);
-    grad.addColorStop(0,'rgba(167,22,31,.17)');grad.addColorStop(1,'rgba(0,0,0,0)');
-    energyCtx.fillStyle=grad;energyCtx.fillRect(0,0,w,h);
-    particles.forEach(p=>{p.y-=p.s;if(p.y<-.02){p.y=1.02;p.x=Math.random()}energyCtx.fillStyle=`rgba(255,255,255,${p.a})`;energyCtx.beginPath();energyCtx.arc(p.x*w,p.y*h,p.r,0,Math.PI*2);energyCtx.fill()});
-    energyCtx.strokeStyle='rgba(226,43,52,.16)';energyCtx.lineWidth=1;
-    for(let i=0;i<3;i++){energyCtx.beginPath();energyCtx.arc(w*.78,h*.5,120+i*64+Math.sin(t/1300+i)*14,0,Math.PI*2);energyCtx.stroke()}
-    requestAnimationFrame(energyLoop);
-  }
-  requestAnimationFrame(energyLoop);
-  addEventListener('resize',()=>{resizeCanvas(boyCanvas,boyCtx);resizeCanvas(energyCanvas,energyCtx)});
-
-  // Asset-aware preloader.
-  const imageSources = [...document.images].map(img => img.getAttribute('src')).filter(Boolean);
-  const media = [introAudio,aizoAudio,genshinPreview,aiPreview,re0Preview];
-  let loaded = 0;
-  const total = imageSources.length + media.length;
-  let ready = false;
-  function markLoaded() {
-    loaded++;
-    const percent = Math.min(100,Math.round(loaded/total*100));
-    loaderBar.style.width = `${percent}%`;
-    loaderStatus.textContent = `正在整理今晚的可能性 · ${percent}%`;
-    if (loaded >= total) finishLoading();
-  }
-  function finishLoading(){
-    if(ready)return;ready=true;loaderBar.style.width='100%';loaderStatus.textContent='今晚已经准备好';enterButton.disabled=false;
-  }
-  imageSources.forEach(src=>{const img=new Image();img.onload=markLoaded;img.onerror=markLoaded;img.src=src});
-  media.forEach(item=>{
-    if(item.readyState>=1)markLoaded();
-    else{item.addEventListener('loadedmetadata',markLoaded,{once:true});item.addEventListener('error',markLoaded,{once:true})}
-  });
-  setTimeout(finishLoading,9000);
-
-  enterButton.addEventListener('click', async () => {
-    entered = true;
-    loader.classList.add('is-gone');
-    experience.classList.add('is-ready');
-    experience.setAttribute('aria-hidden','false');
-    await startIntro();
-    updateUI();
-  });
-
-  updateUI();
+  addEventListener('wheel',e=>{if(!entered||modal.classList.contains('is-open')||activeModule)return;if(scenes[current]==='world'){e.preventDefault();if(worldPhase==='explore'&&Math.abs(e.deltaX)>Math.abs(e.deltaY))targetYaw=clamp(targetYaw+e.deltaX*.0016,-1,1);else if(worldPhase!=='explore')stepWorld(e.deltaY>0?1:-1);return}if(Math.abs(e.deltaY)>18&&performance.now()-lastNav>850){lastNav=performance.now();move(e.deltaY>0?1:-1)}},{passive:false});
+  addEventListener('pointermove',e=>{pointer={x:e.clientX,y:e.clientY};if(scenes[current]==='world'&&worldPhase==='explore'&&!activeModule)targetYaw=clamp((e.clientX/innerWidth-.5)*2.1,-1,1)});
+  addEventListener('touchstart',e=>touch={x:e.touches[0].clientX,y:e.touches[0].clientY},{passive:true});addEventListener('touchmove',e=>{if(scenes[current]==='world'&&worldPhase==='explore'&&!activeModule){const dx=e.touches[0].clientX-touch.x;targetYaw=clamp(targetYaw-dx/innerWidth*1.7,-1,1);touch.x=e.touches[0].clientX}},{passive:true});addEventListener('touchend',e=>{const dy=touch.y-e.changedTouches[0].clientY;if(Math.abs(dy)>35){if(scenes[current]==='world'&&worldPhase!=='explore')stepWorld(dy>0?1:-1);else if(scenes[current]!=='world')move(dy>0?1:-1)}touch={x:0,y:0}},{passive:true});
+  addEventListener('keydown',e=>{if(e.key==='Escape'){if(modal.classList.contains('is-open'))closeModal();else if(activeModule)closeModule();return}if(['ArrowDown','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();move(1)}if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();move(-1)}});
+  $('#soundButton').onclick=()=>{muted=!muted;$('#soundButton').classList.toggle('is-muted',muted);$('#soundLabel').textContent=muted?'SOUND OFF':'SOUND ON';if(muted){intro.pause();aizo.pause()}else sceneAudio(scenes[current])};
+  const cursor=$('#cursor');let cx=pointer.x,cy=pointer.y;addEventListener('pointerover',e=>cursor.classList.toggle('is-over',!!e.target.closest('button,a')));(function loop(){cx+=(pointer.x-cx)*.17;cy+=(pointer.y-cy)*.17;cursor.style.left=`${cx}px`;cursor.style.top=`${cy}px`;requestAnimationFrame(loop)})();
+  resize(boy,bc);resize(energy,ec);resize(wc,ctx);addEventListener('resize',()=>{resize(boy,bc);resize(energy,ec);resize(wc,ctx)});requestAnimationFrame(drawBoy);requestAnimationFrame(drawEnergy);requestAnimationFrame(drawWorld);
+  const imgs=$$('img'),media=[intro,aizo];let loaded=0,total=imgs.length+media.length,ready=false;function mark(){loaded++;const p=Math.min(100,Math.round(loaded/total*100));bar.style.width=`${p}%`;status.textContent=`正在整理今晚的可能性 · ${p}%`;if(loaded>=total)finish()}function finish(){if(ready)return;ready=true;bar.style.width='100%';status.textContent='今晚已经准备好';enter.disabled=false}imgs.forEach(im=>im.complete?mark():(im.onload=im.onerror=mark));media.forEach(m=>m.readyState>=1?mark():(m.onloadedmetadata=m.onerror=mark));setTimeout(finish,8500);
+  enter.onclick=async()=>{entered=true;loader.classList.add('is-gone');experience.classList.add('is-ready');experience.setAttribute('aria-hidden','false');await playIntro(true);updateUI()};updateUI();
 })();
