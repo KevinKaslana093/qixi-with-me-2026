@@ -48,7 +48,7 @@
   bezier([-1.02,-.06],[-.68,.05],[-.18,.62],[.22,.45]);
   bezier([.22,.45],[.58,.32],[.94,-.23],[1.28,-.08]);
   bezier([1.28,-.08],[1.62,.28],[.86,.68],[.08,.12],32);
-  bezier([.08,.12],[.5,.72],[1.42,.62],[1.82,.3],22);
+  bezier([.08,.12],[-.5,.72],[-1.42,.62],[-1.82,.3],22);
   const nodePos={game:{x:-1.02,y:-.38},ai:{x:.22,y:.17},anime:{x:1.28,y:-.38}};
   function pointAt(p){const k=p*(route.length-1),i=Math.floor(k),f=k-i,a=route[Math.min(i,route.length-1)],b=route[Math.min(i+1,route.length-1)];return{x:a[0]+(b[0]-a[0])*f,y:a[1]+(b[1]-a[1])*f}}
   function project(p){const s=Math.min(innerWidth,innerHeight)*(.49-pull*.09),r=p.x-yaw,d=Math.cos(r*.93),side={x:innerWidth/2+Math.sin(r*1.08)*s*1.28,y:innerHeight/2+p.y*s-d*28*(1-pull),scale:clamp(.69+d*.25-pull*.08,.48,1.08),depth:d},top={x:innerWidth/2+(p.x-.04)*Math.min(innerWidth*.285,390),y:innerHeight/2+p.y*Math.min(innerHeight*.62,470),scale:.7,depth:1};return{x:side.x+(top.x-side.x)*overhead,y:side.y+(top.y-side.y)*overhead,scale:side.scale+(top.scale-side.scale)*overhead,depth:side.depth}}
